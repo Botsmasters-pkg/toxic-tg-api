@@ -5,31 +5,13 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json');
 header('Access-Control-Allow-Origin: *');
 
-// API expiry (optional, agar chahte ho to hata do)
-$expiryDate = strtotime('2027-12-31');  // badha diya
-$currentDate = time();
-
-if ($currentDate > $expiryDate) {
-    echo json_encode([
-        "success" => false,
-        "message" => "API Expired! Contact @botadminshere",
-        "credit" => "@botadminshere"
-    ]);
-    exit;
-}
-
-$userid = $_GET['userid'] ?? null;
+$userid = $_GET['userid'] ?? $_GET['user'] ?? null;
 
 if (!$userid) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Please provide a Telegram User ID",
-        "credit" => "@botadminshere"
-    ]);
+    echo json_encode(["success" => false, "message" => "userid required"]);
     exit;
 }
 
-// sanitize
 $userid = preg_replace('/[^0-9]/', '', $userid);
 
 $apiUrl = "https://abhigyan-codes-tg-to-number-api.onrender.com/@abhigyan_codes/userid=" . $userid;
@@ -39,8 +21,8 @@ curl_setopt_array($ch, [
     CURLOPT_URL => $apiUrl,
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_SSL_VERIFYPEER => false,
-    CURLOPT_TIMEOUT => 30,
-    CURLOPT_USERAGENT => 'Mozilla/5.0'
+    CURLOPT_TIMEOUT => 25,
+    CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
 ]);
 
 $response = curl_exec($ch);
@@ -50,33 +32,37 @@ curl_close($ch);
 if ($response === false || $httpCode !== 200) {
     echo json_encode([
         "success" => false,
-        "message" => "Failed to fetch data from API",
-        "credit" => "@botadminshere"
+        "message" => "Backend API connection failed",
+        "userid" => $userid
     ]);
     exit;
 }
 
 $data = json_decode($response, true);
 
-if (!$data || !isset($data['success']) || $data['success'] !== true) {
+if (!$data || empty($data['result']['success'] ?? $data['success'] ?? false)) {
     echo json_encode([
         "success" => false,
-        "message" => $data['message'] ?? "No data found or API error",
-        "credit" => "@botadminshere"
+        "message" => $data['result']['msg'] ?? $data['message'] ?? "No data found",
+        "userid" => $userid
     ]);
     exit;
 }
 
-// Final Output
+// New Structure ke hisaab se output
+$result = $data['result'] ?? $data;
+
 $output = [
     "success" => true,
     "credit" => "@botadminshere",
+    "api" => "@abhigyan_codes",
     "result" => [
-        "country"      => $data['data']['contact_intelligence']['country'] ?? null,
-        "country_code" => $data['data']['contact_intelligence']['country_code'] ?? null,
-        "number"       => $data['data']['contact_intelligence']['phone_number'] ?? null,
-        "full_name"    => $data['data']['profile_summary']['full_name'] ?? null,
-        "username"     => $data['data']['profile_summary']['username'] ?? null
+        "country"       => $result['country'] ?? null,
+        "country_code"  => $result['country_code'] ?? null,
+        "number"        => $result['number'] ?? null,
+        "full_name"     => $result['full_name'] ?? null,
+        "username"      => $result['username'] ?? null,
+        "msg"           => $result['msg'] ?? null
     ]
 ];
 
